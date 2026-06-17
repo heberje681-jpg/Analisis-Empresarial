@@ -35,6 +35,7 @@ h1, h2, h3 { color: #1a2530 !important; font-weight: 600 !important; letter-spac
 </style>""", unsafe_allow_html=True)
 
 LIGHT_THEME_COLORS = ["#0056b3", "#28a745", "#fd7e14", "#6f42c1", "#e83e8c", "#17a2b8"]
+TEXT_COLOR = "#212529" # Gris oscuro casi negro para forzar la lectura
 
 # ─── 3. FUNCIONES DE CARGA DE DATOS (CON AUTO-MAPEO) ───────────────────────
 @st.cache_data(ttl=600)
@@ -70,7 +71,7 @@ def cargar_datos_calidad():
         np.random.seed(42)
         muestras = range(1, 101)
         mediciones = np.random.normal(50.0, 0.15, 100)
-        defectos = ["Ninguno" if m < 50.25 and m > 49.75 else np.random.choice(["Grieta", "Porosidad", "Acabado"]) for m in mediciones]
+        defectos = ["Ninguno" if m < 50.25 and m > 49.75 else np.random.choice(["Grieta", "Porosidad", "Acabado", "Falla de Ensamblaje"]) for m in mediciones]
         return pd.DataFrame({
             "Muestra": muestras, "Medicion": mediciones, "Defecto": defectos,
             "Temperatura_Sensor": np.random.normal(75, 5, 100), "Presion_Sensor": np.random.normal(120, 10, 100)
@@ -156,13 +157,38 @@ if modulo == "📦 Cadena de Suministro e Inventario":
         color_map = {"Clase A (Crítico)": "#0056b3", "Clase B (Medio)": "#fd7e14", "Clase C (Bajo)": "#28a745"}
         bar_colors = df_inv["Clasificacion_ABC"].map(color_map).tolist()
         
-        fig_pareto.add_trace(go.Bar(x=df_inv[sku_col], y=df_inv["Valor_Ventas"], name="Ventas Individuales ($)", marker_color=bar_colors, hovertemplate="<b>SKU: %{x}</b><br>Ventas: $%{y:,.2f}<extra></extra>"), secondary_y=False)
-        fig_pareto.add_trace(go.Scatter(x=df_inv[sku_col], y=df_inv["Porcentaje_Acumulado"], name="% Acumulado", mode="lines+markers", line=dict(color="#dc3545", width=2.5), marker=dict(size=4)), secondary_y=True)
+        # BARRAS CON ETIQUETAS OSCURAS
+        fig_pareto.add_trace(
+            go.Bar(
+                x=df_inv[sku_col], y=df_inv["Valor_Ventas"], name="Ventas Individuales ($)", 
+                marker_color=bar_colors, 
+                text=df_inv["Valor_Ventas"].apply(lambda x: f"${x/1000:.1f}k" if x > 1000 else f"${x:.0f}"), 
+                textposition="outside", 
+                textfont=dict(color=TEXT_COLOR, size=10),
+                hovertemplate="<b>SKU: %{x}</b><br>Ventas: $%{y:,.2f}<extra></extra>"
+            ), secondary_y=False
+        )
+        
+        # LÍNEA ACUMULADA CON ETIQUETAS OSCURAS
+        fig_pareto.add_trace(
+            go.Scatter(
+                x=df_inv[sku_col], y=df_inv["Porcentaje_Acumulado"], name="% Acumulado", 
+                mode="lines+markers+text", 
+                text=df_inv["Porcentaje_Acumulado"].apply(lambda x: f"{x:.0f}%"), 
+                textposition="top left", 
+                textfont=dict(color="#dc3545", size=11),
+                line=dict(color="#dc3545", width=2.5), marker=dict(size=4)
+            ), secondary_y=True
+        )
+        
         fig_pareto.add_hline(y=80, line_dash="dash", line_color="#dc3545", opacity=0.7, secondary_y=True)
-        fig_pareto.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=10, r=10, t=20, b=10), legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+        fig_pareto.update_layout(
+            plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT_COLOR),
+            margin=dict(l=10, r=10, t=20, b=10), legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
         fig_pareto.update_xaxes(title_text="Productos ordenados de mayor a menor valor", showticklabels=False)
-        fig_pareto.update_yaxes(title_text="Ingresos por Ventas ($)", secondary_y=False, gridcolor="#e9ecef")
-        fig_pareto.update_yaxes(title_text="Porcentaje Acumulado (%)", secondary_y=True, range=[0, 105])
+        fig_pareto.update_yaxes(title_text="Ingresos por Ventas ($)", secondary_y=False, gridcolor="#e9ecef", range=[0, df_inv["Valor_Ventas"].max() * 1.15])
+        fig_pareto.update_yaxes(title_text="Porcentaje Acumulado (%)", secondary_y=True, range=[0, 110])
         st.plotly_chart(fig_pareto, use_container_width=True)
         
         cant_clase_a = len(df_inv[df_inv["Clasificacion_ABC"] == "Clase A (Crítico)"])
@@ -176,7 +202,7 @@ if modulo == "📦 Cadena de Suministro e Inventario":
     with layout_graficos_inv[1]:
         st.subheader("Costos Logísticos por Categoría")
         fig_costos = px.box(df_inv, x=type_col, y=ship_col, points="all", color=type_col, color_discrete_sequence=LIGHT_THEME_COLORS)
-        fig_costos.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", showlegend=False)
+        fig_costos.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT_COLOR), showlegend=False)
         st.plotly_chart(fig_costos, use_container_width=True)
         
         st.markdown("""
@@ -234,7 +260,7 @@ elif modulo == "🔬 Analítica de Calidad":
     fig_control.add_hline(y=promedio_proceso, line_dash="dash", line_color="#28a745", annotation_text="Línea Central (Media)")
     fig_control.add_hline(y=lcs, line_dash="dot", line_color="#dc3545", annotation_text="LCS (+3σ)")
     fig_control.add_hline(y=lci, line_dash="dot", line_color="#dc3545", annotation_text="LCI (-3σ)")
-    fig_control.update_layout(plot_bgcolor="#ffffff", paper_bgcolor="rgba(0,0,0,0)", xaxis=dict(gridcolor="#f1f3f5", title="Número de Muestra"), yaxis=dict(gridcolor="#f1f3f5", title="Dimensión Analizada"))
+    fig_control.update_layout(plot_bgcolor="#ffffff", paper_bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT_COLOR), xaxis=dict(gridcolor="#f1f3f5", title="Número de Muestra"), yaxis=dict(gridcolor="#f1f3f5", title="Dimensión Analizada"))
     st.plotly_chart(fig_control, use_container_width=True)
     
     st.markdown("""
@@ -258,21 +284,25 @@ elif modulo == "🔬 Analítica de Calidad":
             
             fig_pareto_defectos = make_subplots(specs=[[{"secondary_y": True}]])
             
+            # BARRAS CON TEXTO OSCURO
             fig_pareto_defectos.add_trace(
                 go.Bar(
                     x=df_defectos["Tipo_Defecto"], y=df_defectos["Frecuencia"],
                     name="Ocurrencias", marker_color="#fd7e14",
                     text=df_defectos["Frecuencia"], textposition="outside",
+                    textfont=dict(color=TEXT_COLOR, size=12),
                     hovertemplate="<b>%{x}</b><br>Frecuencia: %{y}<extra></extra>"
                 ), secondary_y=False
             )
             
+            # LÍNEA CON TEXTO OSCURO
             fig_pareto_defectos.add_trace(
                 go.Scatter(
                     x=df_defectos["Tipo_Defecto"], y=df_defectos["Porcentaje_Acumulado"],
                     name="% Acumulado", mode="lines+markers+text",
                     text=df_defectos["Porcentaje_Acumulado"].apply(lambda x: f"{x:.1f}%"),
                     textposition="bottom right",
+                    textfont=dict(color="#0056b3", size=11, weight="bold"),
                     line=dict(color="#0056b3", width=2.5), marker=dict(size=6),
                     hovertemplate="<b>Porcentaje Acumulado:</b> %{y:.1f}%<extra></extra>"
                 ), secondary_y=True
@@ -281,11 +311,11 @@ elif modulo == "🔬 Analítica de Calidad":
             fig_pareto_defectos.add_hline(y=80, line_dash="dash", line_color="#dc3545", opacity=0.7, secondary_y=True)
             
             fig_pareto_defectos.update_layout(
-                plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT_COLOR),
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
             )
             fig_pareto_defectos.update_yaxes(title_text="Cantidad de Fallas", secondary_y=False, gridcolor="#e9ecef", range=[0, df_defectos["Frecuencia"].max() * 1.15])
-            fig_pareto_defectos.update_yaxes(title_text="Porcentaje Acumulado (%)", secondary_y=True, range=[0, 110])
+            fig_pareto_defectos.update_yaxes(title_text="Porcentaje Acumulado (%)", secondary_y=True, range=[0, 115])
             
             st.plotly_chart(fig_pareto_defectos, use_container_width=True)
             
@@ -304,13 +334,13 @@ elif modulo == "🔬 Analítica de Calidad":
     with layout_inferior_cal[1]:
         st.subheader("Correlación de Variables vs Rechazos")
         fig_corr = px.scatter(df_cal, x="Temperatura_Sensor", y="Medicion", color="Defecto", color_discrete_sequence=["#28a745", "#dc3545", "#fd7e14", "#6f42c1"])
-        fig_corr.update_layout(plot_bgcolor="rgba(0,0,0,0)")
+        fig_corr.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT_COLOR))
         st.plotly_chart(fig_corr, use_container_width=True)
         
         st.markdown("""
         <div class='chart-desc'>
         <b>💡 Diagnóstico de Correlación de Parámetros:</b><br>
-        Evalúa si un parámetro (ej. Temperatura o Presión) está generando defectos (puntos rojos/naranjas) en rangos específicos. Fundamental para ajustar y calibrar las máquinas.
+        Evalúa si un parámetro ambiental o de máquina está generando defectos específicos. Fundamental para establecer tolerancias seguras en la configuración del equipo.
         </div>
         """, unsafe_allow_html=True)
 
@@ -353,7 +383,7 @@ else:
             df_maint, x=rpm_col, y=torque_col, color=df_maint["Machine failure"].astype(str),
             color_discrete_map={"0": "#0056b3", "1": "#dc3545"}, labels={"0": "Operación Normal", "1": "Falla del Equipo"}
         )
-        fig_scatter_maint.update_layout(plot_bgcolor="rgba(0,0,0,0)")
+        fig_scatter_maint.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT_COLOR))
         st.plotly_chart(fig_scatter_maint, use_container_width=True)
         
         st.markdown("""
@@ -366,7 +396,7 @@ else:
     with layout_graficos_maint[1]:
         st.subheader("Curva de Degradación: Desgaste de Herramienta")
         fig_hist_wear = px.histogram(df_maint, x=tool_wear_col, color="Machine failure", color_discrete_map={0: "#28a745", 1: "#dc3545"}, nbins=30)
-        fig_hist_wear.update_layout(plot_bgcolor="rgba(0,0,0,0)")
+        fig_hist_wear.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT_COLOR))
         st.plotly_chart(fig_hist_wear, use_container_width=True)
         
         st.markdown("""
