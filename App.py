@@ -30,7 +30,8 @@ h1, h2, h3 { color: #1a2530 !important; font-weight: 600 !important; letter-spac
 .kpi-lbl { font-size: 11px; color: #6c757d; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
 .kpi-val { font-family: 'JetBrains Mono', monospace; font-size: 30px; font-weight: 600; color: #0056b3; margin-top: 4px; }
 .kpi-subtext { font-size: 12px; color: #28a745; margin-top: 4px; font-weight: 500; }
-.section-header { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #495057; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid #e9ecef; padding-bottom: 5px; margin-bottom: 15px; margin-top: 10px; }
+.section-header { font-family: 'JetBrains Mono', monospace; font-size: 14px; color: #495057; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid #e9ecef; padding-bottom: 5px; margin-bottom: 15px; margin-top: 10px; font-weight: 600; }
+.chart-desc { font-size: 13px; color: #6c757d; background-color: #ffffff; padding: 12px; border-radius: 8px; border-left: 4px solid #0056b3; margin-top: -10px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
 </style>""", unsafe_allow_html=True)
 
 LIGHT_THEME_COLORS = ["#0056b3", "#28a745", "#fd7e14", "#6f42c1", "#e83e8c", "#17a2b8"]
@@ -59,17 +60,11 @@ def cargar_datos_calidad():
         cols_num = df.select_dtypes(include=np.number).columns.tolist()
         cols_cat = df.select_dtypes(exclude=np.number).columns.tolist()
         
-        if "Medicion" not in cols:
-            df["Medicion"] = df[cols_num[0]] if len(cols_num) > 0 else np.random.normal(50.0, 0.15, len(df))
-        if "Defecto" not in cols:
-            df["Defecto"] = df[cols_cat[0]] if len(cols_cat) > 0 else "Ninguno"
-        if "Temperatura_Sensor" not in cols:
-            df["Temperatura_Sensor"] = df[cols_num[1]] if len(cols_num) > 1 else np.random.normal(75, 5, len(df))
-        if "Presion_Sensor" not in cols:
-            df["Presion_Sensor"] = df[cols_num[2]] if len(cols_num) > 2 else np.random.normal(120, 10, len(df))
-        if "Muestra" not in cols:
-            df["Muestra"] = range(1, len(df) + 1)
-            
+        if "Medicion" not in cols: df["Medicion"] = df[cols_num[0]] if len(cols_num) > 0 else np.random.normal(50.0, 0.15, len(df))
+        if "Defecto" not in cols: df["Defecto"] = df[cols_cat[0]] if len(cols_cat) > 0 else "Ninguno"
+        if "Temperatura_Sensor" not in cols: df["Temperatura_Sensor"] = df[cols_num[1]] if len(cols_num) > 1 else np.random.normal(75, 5, len(df))
+        if "Presion_Sensor" not in cols: df["Presion_Sensor"] = df[cols_num[2]] if len(cols_num) > 2 else np.random.normal(120, 10, len(df))
+        if "Muestra" not in cols: df["Muestra"] = range(1, len(df) + 1)
         return df
     else:
         np.random.seed(42)
@@ -111,7 +106,7 @@ with st.sidebar:
     st.markdown("<div style='font-size: 11px; font-weight: 500;'>ESTADO DE CONEXIÓN:</div>", unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
-# MÓDULO 1: CADENA DE SUMINISTRO E INVENTARIOS (Pareto Corregido)
+# MÓDULO 1: CADENA DE SUMINISTRO E INVENTARIOS
 # ══════════════════════════════════════════════════════════════════════════════
 if modulo == "📦 Cadena de Suministro e Inventario":
     st.title("📦 Business Intelligence: Inventario y Logística")
@@ -124,7 +119,6 @@ if modulo == "📦 Cadena de Suministro e Inventario":
         else:
             st.caption("Usando simulación avanzada")
 
-    # Mapeo dinámico de nombres de columnas de Kaggle (Manejo de errores seguro)
     sales_col = "Number of products sold" if "Number of products sold" in df_inv.columns else (df_inv.columns[4] if len(df_inv.columns) > 4 else "Sales")
     price_col = "Price" if "Price" in df_inv.columns else "Price"
     sku_col = "SKU" if "SKU" in df_inv.columns else df_inv.columns[0]
@@ -144,10 +138,8 @@ if modulo == "📦 Cadena de Suministro e Inventario":
     )
 
     kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
-    with kpi_col1:
-        st.markdown(f"<div class='kpi-box'><div class='kpi-lbl'>Productos Totales</div><div class='kpi-val'>{len(df_inv)}</div><div class='kpi-subtext' style='color:#0056b3;'>SKUs en Catálogo</div></div>", unsafe_allow_html=True)
-    with kpi_col2:
-        st.markdown(f"<div class='kpi-box'><div class='kpi-lbl'>Valor de Movimiento</div><div class='kpi-val'>${total_valor:,.2f}</div><div class='kpi-subtext'>Cálculo de Demanda</div></div>", unsafe_allow_html=True)
+    with kpi_col1: st.markdown(f"<div class='kpi-box'><div class='kpi-lbl'>Productos Totales</div><div class='kpi-val'>{len(df_inv)}</div><div class='kpi-subtext' style='color:#0056b3;'>SKUs en Catálogo</div></div>", unsafe_allow_html=True)
+    with kpi_col2: st.markdown(f"<div class='kpi-box'><div class='kpi-lbl'>Valor de Movimiento</div><div class='kpi-val'>${total_valor:,.2f}</div><div class='kpi-subtext'>Cálculo de Demanda</div></div>", unsafe_allow_html=True)
     with kpi_col3:
         bajo_stock = len(df_inv[df_inv[avail_col] < 15]) if avail_col in df_inv.columns else 0
         st.markdown(f"<div class='kpi-box'><div class='kpi-lbl'>Riesgo de Quiebre</div><div class='kpi-val' style='color:#fd7e14;'>{bajo_stock}</div><div class='kpi-subtext' style='color:#fd7e14;'>Stock Menor a 15 u.</div></div>", unsafe_allow_html=True)
@@ -159,65 +151,39 @@ if modulo == "📦 Cadena de Suministro e Inventario":
     
     layout_graficos_inv = st.columns([1.6, 1])
     with layout_graficos_inv[0]:
-        st.subheader("Análisis de Pareto Dinámico (Doble Eje con Curva Acumulada)")
-        
-        # 🌟 CONSTRUCCIÓN DEL DIAGRAMA DE PARETO COMPLETO (DOBLE EJE) 🌟
+        st.subheader("Análisis de Pareto Dinámico (Clasificación ABC)")
         fig_pareto = make_subplots(specs=[[{"secondary_y": True}]])
-        
-        # Asignar colores a las barras según clasificación ABC
         color_map = {"Clase A (Crítico)": "#0056b3", "Clase B (Medio)": "#fd7e14", "Clase C (Bajo)": "#28a745"}
         bar_colors = df_inv["Clasificacion_ABC"].map(color_map).tolist()
         
-        # Eje Y Izquierdo: Barras de Ventas Individuales
-        fig_pareto.add_trace(
-            go.Bar(
-                x=df_inv[sku_col], y=df_inv["Valor_Ventas"],
-                name="Ventas Individuales ($)", marker_color=bar_colors,
-                hovertemplate="<b>SKU: %{x}</b><br>Ventas: $%{y:,.2f}<extra></extra>"
-            ), secondary_y=False
-        )
-        
-        # Eje Y Derecho: Línea de Porcentaje Acumulado (Curva de Pareto)
-        fig_pareto.add_trace(
-            go.Scatter(
-                x=df_inv[sku_col], y=df_inv["Porcentaje_Acumulado"],
-                name="% Acumulado", mode="lines+markers",
-                line=dict(color="#dc3545", width=2.5), marker=dict(size=4),
-                hovertemplate="<b>Porcentaje Acumulado:</b> %{y:.1f}%<extra></extra>"
-            ), secondary_y=True
-        )
-        
-        # Línea guía de corte del 80% analítico
+        fig_pareto.add_trace(go.Bar(x=df_inv[sku_col], y=df_inv["Valor_Ventas"], name="Ventas Individuales ($)", marker_color=bar_colors, hovertemplate="<b>SKU: %{x}</b><br>Ventas: $%{y:,.2f}<extra></extra>"), secondary_y=False)
+        fig_pareto.add_trace(go.Scatter(x=df_inv[sku_col], y=df_inv["Porcentaje_Acumulado"], name="% Acumulado", mode="lines+markers", line=dict(color="#dc3545", width=2.5), marker=dict(size=4)), secondary_y=True)
         fig_pareto.add_hline(y=80, line_dash="dash", line_color="#dc3545", opacity=0.7, secondary_y=True)
-
-        fig_pareto.update_layout(
-            plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-            margin=dict(l=10, r=10, t=20, b=10),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-        )
+        fig_pareto.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=10, r=10, t=20, b=10), legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
         fig_pareto.update_xaxes(title_text="Productos ordenados de mayor a menor valor", showticklabels=False)
         fig_pareto.update_yaxes(title_text="Ingresos por Ventas ($)", secondary_y=False, gridcolor="#e9ecef")
-        fig_pareto.update_yaxes(title_text="Porcentaje Acumulado (%)", secondary_y=True, range=[0, 105], dtick=20)
-        
+        fig_pareto.update_yaxes(title_text="Porcentaje Acumulado (%)", secondary_y=True, range=[0, 105])
         st.plotly_chart(fig_pareto, use_container_width=True)
         
-        # 💡 DETECCIÓN AUTOMÁTICA DEL PROBLEMA DE INVENTARIO (CUADRO DE DIAGNÓSTICO)
-        cant_clase_a = len(df_inv[df_inv["Clasificacion_ABC"] == "Clase A (Crítico)"])
-        pct_items_clase_a = (cant_clase_a / len(df_inv)) * 100
-        
-        st.info(f"""
-        💡 **DIAGNÓSTICO GERENCIAL (Ley de Pareto Detectada):** El **{pct_items_clase_a:.1f}%** de tus productos activos (*Clase A*) acumulan el **80% del valor financiero total** de la operación. 
-        **Acción de Ingeniería:** Concentra auditorías de calidad (APQP/PPAP) y optimiza los stocks de seguridad exclusivamente en estos artículos críticos. Un quiebre de inventario aquí paralizaría los ingresos principales de la compañía.
-        """)
+        st.markdown("""
+        <div class='chart-desc'>
+        <b>💡 Interpretación Gerencial (Curva de Pareto):</b><br>
+        Este gráfico clasifica el inventario utilizando la ley del 80/20. Las barras azules (Clase A) representan los pocos productos que generan el 80% de los ingresos totales de la empresa. La línea roja muestra cómo se acumula ese porcentaje. <b>Acción recomendada:</b> Priorizar el presupuesto, los pronósticos de demanda y el control de calidad estrictamente en los artículos Clase A para proteger la rentabilidad.
+        </div>
+        """, unsafe_allow_html=True)
         
     with layout_graficos_inv[1]:
-        st.subheader("Costos Logísticos por Tipo de Producto")
-        fig_costos = px.box(
-            df_inv, x=type_col, y=ship_col, 
-            points="all", color=type_col, color_discrete_sequence=LIGHT_THEME_COLORS
-        )
+        st.subheader("Costos Logísticos por Categoría")
+        fig_costos = px.box(df_inv, x=type_col, y=ship_col, points="all", color=type_col, color_discrete_sequence=LIGHT_THEME_COLORS)
         fig_costos.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", showlegend=False)
         st.plotly_chart(fig_costos, use_container_width=True)
+        
+        st.markdown("""
+        <div class='chart-desc'>
+        <b>💡 Variabilidad Logística:</b><br>
+        Este diagrama de caja (Boxplot) visualiza la dispersión de los costos de envío. Las cajas más altas indican mayor inestabilidad en los fletes de esa categoría. Permite identificar rutas o proveedores que requieren estandarización.
+        </div>
+        """, unsafe_allow_html=True)
 
     st.subheader("📋 Matriz de Control de Inventario General")
     st.dataframe(df_inv[[sku_col, type_col, price_col, avail_col, sales_col, "Clasificacion_ABC", "Valor_Ventas"]], use_container_width=True, hide_index=True)
@@ -238,7 +204,6 @@ elif modulo == "🔬 Analítica de Calidad":
 
     promedio_proceso = df_cal["Medicion"].mean()
     desviacion_proceso = df_cal["Medicion"].std()
-    
     lcs = promedio_proceso + (3 * desviacion_proceso)
     lci = promedio_proceso - (3 * desviacion_proceso)
     les = promedio_proceso + 0.40 
@@ -248,9 +213,8 @@ elif modulo == "🔬 Analítica de Calidad":
     cpk = min((les - promedio_proceso)/(3 * desviacion_proceso), (promedio_proceso - lei)/(3 * desviacion_proceso))
 
     kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
-    with kpi_col1:
-        st.markdown(f"<div class='kpi-box'><div class='kpi-lbl'>Media del Proceso</div><div class='kpi-val'>{promedio_proceso:.3f} mm</div><div class='kpi-subtext' style='color:#0056b3;'>Dimensión Promedio</div></div>", unsafe_allow_html=True)
-    with kpi_col2:
+    with kpi_col1: st.markdown(f"<div class='kpi-box'><div class='kpi-lbl'>Media del Proceso</div><div class='kpi-val'>{promedio_proceso:.3f}</div><div class='kpi-subtext' style='color:#0056b3;'>Dimensión Promedio</div></div>", unsafe_allow_html=True)
+    with kpi_col2: 
         tasa_defectos = (len(df_cal[df_cal["Defecto"] != "Ninguno"]) / len(df_cal)) * 100
         st.markdown(f"<div class='kpi-box'><div class='kpi-lbl'>Tasa de Defectos</div><div class='kpi-val' style='color:#dc3545;'>{tasa_defectos:.1f}%</div><div class='kpi-subtext' style='color:#dc3545;'>Unidades Rechazadas</div></div>", unsafe_allow_html=True)
     with kpi_col3:
@@ -268,30 +232,49 @@ elif modulo == "🔬 Analítica de Calidad":
     fig_control.add_hline(y=promedio_proceso, line_dash="dash", line_color="#28a745", annotation_text="Línea Central (Media)")
     fig_control.add_hline(y=lcs, line_dash="dot", line_color="#dc3545", annotation_text="LCS (+3σ)")
     fig_control.add_hline(y=lci, line_dash="dot", line_color="#dc3545", annotation_text="LCI (-3σ)")
-    
-    fig_control.update_layout(
-        title="Carta de Control de Variabilidad Estadístico (Muestreo Secuencial)",
-        plot_bgcolor="#ffffff", paper_bgcolor="rgba(0,0,0,0)",
-        xaxis=dict(gridcolor="#f1f3f5", title="Número de Muestra"), yaxis=dict(gridcolor="#f1f3f5", title="Dimensión Analizada")
-    )
+    fig_control.update_layout(plot_bgcolor="#ffffff", paper_bgcolor="rgba(0,0,0,0)", xaxis=dict(gridcolor="#f1f3f5", title="Número de Muestra"), yaxis=dict(gridcolor="#f1f3f5", title="Dimensión Analizada"))
     st.plotly_chart(fig_control, use_container_width=True)
+    
+    st.markdown("""
+    <div class='chart-desc'>
+    <b>💡 Gráfico de Control (Cartas X-bar):</b><br>
+    Permite monitorear la estabilidad del proceso de manufactura a lo largo del tiempo. Las líneas punteadas rojas representan los límites de control estadístico a ±3 desviaciones estándar de la media. Cualquier punto fuera de estos límites indica una "causa asignable" de variación que debe ser investigada inmediatamente para evitar defectos masivos.
+    </div>
+    """, unsafe_allow_html=True)
 
     layout_inferior_cal = st.columns(2)
     with layout_inferior_cal[0]:
-        st.subheader("Análisis de Pareto: Modos de Falla Frecuentes")
+        st.subheader("Análisis de Pareto: Modos de Falla")
+        # 🔥 SOLUCIÓN AL ERROR DE PANDAS 2.0 (Renombramiento explícito de columnas) 🔥
         df_defectos = df_cal[df_cal["Defecto"] != "Ninguno"]["Defecto"].value_counts().reset_index()
+        df_defectos.columns = ["Tipo_Defecto", "Frecuencia"]
+        
         if not df_defectos.empty:
-            fig_pareto_defectos = px.bar(df_defectos, x="index", y="Defecto", labels={"index": "Tipo de Defecto", "Defecto": "Frecuencia de Ocurrencia"}, color_discrete_sequence=["#fd7e14"])
+            fig_pareto_defectos = px.bar(df_defectos, x="Tipo_Defecto", y="Frecuencia", color_discrete_sequence=["#fd7e14"])
             fig_pareto_defectos.update_layout(plot_bgcolor="rgba(0,0,0,0)")
             st.plotly_chart(fig_pareto_defectos, use_container_width=True)
+            
+            st.markdown("""
+            <div class='chart-desc'>
+            <b>💡 Detección de Frecuencias:</b><br>
+            Identifica rápidamente qué tipo de defecto está golpeando más duro el <i>yield</i> de producción para enfocar los esfuerzos de mejora continua en la causa raíz principal.
+            </div>
+            """, unsafe_allow_html=True)
         else:
             st.info("No se registran defectos en la corrida actual. Excelente estabilidad.")
             
     with layout_inferior_cal[1]:
-        st.subheader("Correlación: Temperatura del Proceso vs Variación Física")
+        st.subheader("Correlación de Variables")
         fig_corr = px.scatter(df_cal, x="Temperatura_Sensor", y="Medicion", color="Defecto", color_discrete_sequence=["#28a745", "#dc3545", "#fd7e14", "#6f42c1"])
         fig_corr.update_layout(plot_bgcolor="rgba(0,0,0,0)")
         st.plotly_chart(fig_corr, use_container_width=True)
+        
+        st.markdown("""
+        <div class='chart-desc'>
+        <b>💡 Diagnóstico de Correlación:</b><br>
+        Evalúa si un factor ambiental (como la temperatura de la máquina) está provocando alteraciones en la dimensión física de la pieza o generando defectos. Fundamental para el ajuste de parámetros técnicos.
+        </div>
+        """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # MÓDULO 3: MANTENIMIENTO PREDICTIVO
@@ -308,9 +291,8 @@ else:
             st.caption("Usando simulación avanzada")
 
     kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
-    with kpi_col1:
-        st.markdown(f"<div class='kpi-box'><div class='kpi-lbl'>Total Registros Monitoreados</div><div class='kpi-val'>{len(df_maint)}</div><div class='kpi-subtext' style='color:#0056b3;'>Horas de Operación</div></div>", unsafe_allow_html=True)
-    with kpi_col2:
+    with kpi_col1: st.markdown(f"<div class='kpi-box'><div class='kpi-lbl'>Total Registros Monitoreados</div><div class='kpi-val'>{len(df_maint)}</div><div class='kpi-subtext' style='color:#0056b3;'>Horas de Operación</div></div>", unsafe_allow_html=True)
+    with kpi_col2: 
         fallas_reales = df_maint["Machine failure"].sum()
         st.markdown(f"<div class='kpi-box'><div class='kpi-lbl'>Anomalías / Fallas</div><div class='kpi-val' style='color:#dc3545;'>{fallas_reales}</div><div class='kpi-subtext' style='color:#dc3545;'>Paros Críticos del Sistema</div></div>", unsafe_allow_html=True)
     with kpi_col3:
@@ -325,28 +307,36 @@ else:
     
     layout_graficos_maint = st.columns(2)
     with layout_graficos_maint[0]:
-        st.subheader("Distribución Operativa: Torque vs Velocidad Rotación (RPM)")
+        st.subheader("Envolvente Operativa: Torque vs Velocidad (RPM)")
         rpm_col = "Rotational speed [rpm]" if "Rotational speed [rpm]" in df_maint.columns else df_maint.select_dtypes(include=np.number).columns[3]
         torque_col = "Torque [Nm]" if "Torque [Nm]" in df_maint.columns else df_maint.select_dtypes(include=np.number).columns[4]
         
         fig_scatter_maint = px.scatter(
-            df_maint, x=rpm_col, y=torque_col,
-            color=df_maint["Machine failure"].astype(str),
-            color_discrete_map={"0": "#0056b3", "1": "#dc3545"},
-            labels={"0": "Operación Normal", "1": "Falla del Equipo"}
+            df_maint, x=rpm_col, y=torque_col, color=df_maint["Machine failure"].astype(str),
+            color_discrete_map={"0": "#0056b3", "1": "#dc3545"}, labels={"0": "Operación Normal", "1": "Falla del Equipo"}
         )
         fig_scatter_maint.update_layout(plot_bgcolor="rgba(0,0,0,0)")
         st.plotly_chart(fig_scatter_maint, use_container_width=True)
         
+        st.markdown("""
+        <div class='chart-desc'>
+        <b>💡 Identificación de Zonas de Riesgo:</b><br>
+        Mapea el punto exacto de operación (Revoluciones vs Torque) de la maquinaria. Los puntos rojos revelan las condiciones físicas exactas bajo las cuales el motor o la fresadora tienden a colapsar, permitiendo reprogramar los parámetros de corte.
+        </div>
+        """, unsafe_allow_html=True)
+        
     with layout_graficos_maint[1]:
         st.subheader("Curva de Degradación: Desgaste de Herramienta")
-        fig_hist_wear = px.histogram(
-            df_maint, x=tool_wear_col, color="Machine failure",
-            color_discrete_map={0: "#28a745", 1: "#dc3545"},
-            nbins=30
-        )
+        fig_hist_wear = px.histogram(df_maint, x=tool_wear_col, color="Machine failure", color_discrete_map={0: "#28a745", 1: "#dc3545"}, nbins=30)
         fig_hist_wear.update_layout(plot_bgcolor="rgba(0,0,0,0)")
         st.plotly_chart(fig_hist_wear, use_container_width=True)
+        
+        st.markdown("""
+        <div class='chart-desc'>
+        <b>💡 Programación de Cambios Rápidos (SMED):</b><br>
+        Este histograma ilustra la vida útil de los insertos/herramientas en minutos antes de fallar (barras rojas). Es vital para calcular el tiempo óptimo para ejecutar un mantenimiento preventivo sin interrumpir la producción de forma sorpresiva.
+        </div>
+        """, unsafe_allow_html=True)
 
     st.subheader("🚨 Registro de Telemetría para Inspección en Planta")
     st.dataframe(df_maint.sort_values(by="Machine failure", ascending=False), use_container_width=True, hide_index=True)
