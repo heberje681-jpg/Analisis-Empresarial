@@ -35,9 +35,9 @@ h1, h2, h3 { color: #1a2530 !important; font-weight: 600 !important; letter-spac
 </style>""", unsafe_allow_html=True)
 
 LIGHT_THEME_COLORS = ["#0056b3", "#28a745", "#fd7e14", "#6f42c1", "#e83e8c", "#17a2b8"]
-TEXT_COLOR = "#212529" # Gris oscuro casi negro para forzar la lectura
+TEXT_COLOR = "#212529" # Color forzado para que los ejes nunca se vean blancos
 
-# ─── 3. FUNCIONES DE CARGA DE DATOS (CON AUTO-MAPEO) ───────────────────────
+# ─── 3. FUNCIONES DE CARGA DE DATOS ─────────────────────────────────────────
 @st.cache_data(ttl=600)
 def cargar_datos_inventario():
     if os.path.exists("supply_chain_data.csv"):
@@ -93,7 +93,7 @@ def cargar_datos_mantenimiento():
             "Machine failure": np.random.choice([0, 1], 200, p=[0.96, 0.04])
         })
 
-# ─── 4. ESTRUCTURA DE LA BARRA LATERAL (MENÚ PRINCIPAL) ─────────────────────
+# ─── 4. ESTRUCTURA DE LA BARRA LATERAL ──────────────────────────────────────
 with st.sidebar:
     st.markdown("<h2 style='text-align: center; color: #0056b3 !important;'>Industrial OS</h2>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; font-size:12px; margin-top:-10px;'>Planta Central Gerencial</p>", unsafe_allow_html=True)
@@ -157,38 +157,36 @@ if modulo == "📦 Cadena de Suministro e Inventario":
         color_map = {"Clase A (Crítico)": "#0056b3", "Clase B (Medio)": "#fd7e14", "Clase C (Bajo)": "#28a745"}
         bar_colors = df_inv["Clasificacion_ABC"].map(color_map).tolist()
         
-        # BARRAS CON ETIQUETAS OSCURAS
+        # Gráfica limpia, sin amontonar etiquetas en las barras
         fig_pareto.add_trace(
             go.Bar(
                 x=df_inv[sku_col], y=df_inv["Valor_Ventas"], name="Ventas Individuales ($)", 
                 marker_color=bar_colors, 
-                text=df_inv["Valor_Ventas"].apply(lambda x: f"${x/1000:.1f}k" if x > 1000 else f"${x:.0f}"), 
-                textposition="outside", 
-                textfont=dict(color=TEXT_COLOR, size=10),
                 hovertemplate="<b>SKU: %{x}</b><br>Ventas: $%{y:,.2f}<extra></extra>"
             ), secondary_y=False
         )
         
-        # LÍNEA ACUMULADA CON ETIQUETAS OSCURAS
+        # Gráfica limpia, sin amontonar etiquetas en la línea
         fig_pareto.add_trace(
             go.Scatter(
                 x=df_inv[sku_col], y=df_inv["Porcentaje_Acumulado"], name="% Acumulado", 
-                mode="lines+markers+text", 
-                text=df_inv["Porcentaje_Acumulado"].apply(lambda x: f"{x:.0f}%"), 
-                textposition="top left", 
-                textfont=dict(color="#dc3545", size=11),
-                line=dict(color="#dc3545", width=2.5), marker=dict(size=4)
+                mode="lines+markers", 
+                line=dict(color="#dc3545", width=2.5), marker=dict(size=4),
+                hovertemplate="<b>Porcentaje Acumulado:</b> %{y:.1f}%<extra></extra>"
             ), secondary_y=True
         )
         
         fig_pareto.add_hline(y=80, line_dash="dash", line_color="#dc3545", opacity=0.7, secondary_y=True)
+        
+        # Forzamos los colores de ejes a Oscuro
         fig_pareto.update_layout(
             plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT_COLOR),
             margin=dict(l=10, r=10, t=20, b=10), legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
-        fig_pareto.update_xaxes(title_text="Productos ordenados de mayor a menor valor", showticklabels=False)
-        fig_pareto.update_yaxes(title_text="Ingresos por Ventas ($)", secondary_y=False, gridcolor="#e9ecef", range=[0, df_inv["Valor_Ventas"].max() * 1.15])
-        fig_pareto.update_yaxes(title_text="Porcentaje Acumulado (%)", secondary_y=True, range=[0, 110])
+        fig_pareto.update_xaxes(title_text="Productos ordenados de mayor a menor valor", showticklabels=False, title_font=dict(color=TEXT_COLOR))
+        fig_pareto.update_yaxes(title_text="Ingresos por Ventas ($)", secondary_y=False, gridcolor="#e9ecef", tickfont=dict(color=TEXT_COLOR), title_font=dict(color=TEXT_COLOR))
+        fig_pareto.update_yaxes(title_text="Porcentaje Acumulado (%)", secondary_y=True, range=[0, 105], tickfont=dict(color=TEXT_COLOR), title_font=dict(color=TEXT_COLOR))
+        
         st.plotly_chart(fig_pareto, use_container_width=True)
         
         cant_clase_a = len(df_inv[df_inv["Clasificacion_ABC"] == "Clase A (Crítico)"])
@@ -200,19 +198,14 @@ if modulo == "📦 Cadena de Suministro e Inventario":
         """)
         
     with layout_graficos_inv[1]:
-        st.subheader("Costos Logísticos por Categoría")
+        st.subheader("Costos Logísticos")
         fig_costos = px.box(df_inv, x=type_col, y=ship_col, points="all", color=type_col, color_discrete_sequence=LIGHT_THEME_COLORS)
         fig_costos.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT_COLOR), showlegend=False)
+        fig_costos.update_xaxes(title_font=dict(color=TEXT_COLOR), tickfont=dict(color=TEXT_COLOR))
+        fig_costos.update_yaxes(title_font=dict(color=TEXT_COLOR), tickfont=dict(color=TEXT_COLOR))
         st.plotly_chart(fig_costos, use_container_width=True)
-        
-        st.markdown("""
-        <div class='chart-desc'>
-        <b>💡 Variabilidad Logística:</b><br>
-        Este boxplot visualiza la dispersión de los costos de envío. Las cajas más altas indican inestabilidad en fletes, revelando dónde estandarizar contratos logísticos.
-        </div>
-        """, unsafe_allow_html=True)
 
-    st.subheader("📋 Matriz de Control de Inventario General")
+    st.subheader("📋 Matriz de Control General")
     st.dataframe(df_inv[[sku_col, type_col, price_col, avail_col, sales_col, "Clasificacion_ABC", "Valor_Ventas"]], use_container_width=True, hide_index=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -260,16 +253,11 @@ elif modulo == "🔬 Analítica de Calidad":
     fig_control.add_hline(y=promedio_proceso, line_dash="dash", line_color="#28a745", annotation_text="Línea Central (Media)")
     fig_control.add_hline(y=lcs, line_dash="dot", line_color="#dc3545", annotation_text="LCS (+3σ)")
     fig_control.add_hline(y=lci, line_dash="dot", line_color="#dc3545", annotation_text="LCI (-3σ)")
-    fig_control.update_layout(plot_bgcolor="#ffffff", paper_bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT_COLOR), xaxis=dict(gridcolor="#f1f3f5", title="Número de Muestra"), yaxis=dict(gridcolor="#f1f3f5", title="Dimensión Analizada"))
+    fig_control.update_layout(plot_bgcolor="#ffffff", paper_bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT_COLOR))
+    fig_control.update_xaxes(gridcolor="#f1f3f5", title="Número de Muestra", title_font=dict(color=TEXT_COLOR), tickfont=dict(color=TEXT_COLOR))
+    fig_control.update_yaxes(gridcolor="#f1f3f5", title="Dimensión Analizada", title_font=dict(color=TEXT_COLOR), tickfont=dict(color=TEXT_COLOR))
     st.plotly_chart(fig_control, use_container_width=True)
     
-    st.markdown("""
-    <div class='chart-desc'>
-    <b>💡 Gráfico de Control (Cartas X-bar):</b><br>
-    Permite monitorear la estabilidad de la manufactura. Las líneas punteadas rojas representan los límites de control (±3 desviaciones estándar). Puntos fuera de límites alertan sobre "causas asignables" que requieren contención inmediata.
-    </div>
-    """, unsafe_allow_html=True)
-
     layout_inferior_cal = st.columns(2)
     with layout_inferior_cal[0]:
         st.subheader("Análisis de Pareto: Modos de Falla")
@@ -284,25 +272,20 @@ elif modulo == "🔬 Analítica de Calidad":
             
             fig_pareto_defectos = make_subplots(specs=[[{"secondary_y": True}]])
             
-            # BARRAS CON TEXTO OSCURO
+            # Barras limpias sin texto encimado
             fig_pareto_defectos.add_trace(
                 go.Bar(
                     x=df_defectos["Tipo_Defecto"], y=df_defectos["Frecuencia"],
                     name="Ocurrencias", marker_color="#fd7e14",
-                    text=df_defectos["Frecuencia"], textposition="outside",
-                    textfont=dict(color=TEXT_COLOR, size=12),
                     hovertemplate="<b>%{x}</b><br>Frecuencia: %{y}<extra></extra>"
                 ), secondary_y=False
             )
             
-            # LÍNEA CON TEXTO OSCURO
+            # Línea limpia
             fig_pareto_defectos.add_trace(
                 go.Scatter(
                     x=df_defectos["Tipo_Defecto"], y=df_defectos["Porcentaje_Acumulado"],
-                    name="% Acumulado", mode="lines+markers+text",
-                    text=df_defectos["Porcentaje_Acumulado"].apply(lambda x: f"{x:.1f}%"),
-                    textposition="bottom right",
-                    textfont=dict(color="#0056b3", size=11, weight="bold"),
+                    name="% Acumulado", mode="lines+markers",
                     line=dict(color="#0056b3", width=2.5), marker=dict(size=6),
                     hovertemplate="<b>Porcentaje Acumulado:</b> %{y:.1f}%<extra></extra>"
                 ), secondary_y=True
@@ -310,39 +293,32 @@ elif modulo == "🔬 Analítica de Calidad":
             
             fig_pareto_defectos.add_hline(y=80, line_dash="dash", line_color="#dc3545", opacity=0.7, secondary_y=True)
             
+            # Forzamos los colores de ejes a Oscuro
             fig_pareto_defectos.update_layout(
                 plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT_COLOR),
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
             )
-            fig_pareto_defectos.update_yaxes(title_text="Cantidad de Fallas", secondary_y=False, gridcolor="#e9ecef", range=[0, df_defectos["Frecuencia"].max() * 1.15])
-            fig_pareto_defectos.update_yaxes(title_text="Porcentaje Acumulado (%)", secondary_y=True, range=[0, 115])
+            fig_pareto_defectos.update_xaxes(tickfont=dict(color=TEXT_COLOR))
+            fig_pareto_defectos.update_yaxes(title_text="Cantidad de Fallas", secondary_y=False, gridcolor="#e9ecef", tickfont=dict(color=TEXT_COLOR), title_font=dict(color=TEXT_COLOR))
+            fig_pareto_defectos.update_yaxes(title_text="Porcentaje Acumulado (%)", secondary_y=True, range=[0, 110], tickfont=dict(color=TEXT_COLOR), title_font=dict(color=TEXT_COLOR))
             
             st.plotly_chart(fig_pareto_defectos, use_container_width=True)
             
             defectos_criticos = df_defectos[df_defectos["Porcentaje_Acumulado"] <= 85] 
-            if defectos_criticos.empty:
-                defectos_criticos = df_defectos.head(1)
+            if defectos_criticos.empty: defectos_criticos = df_defectos.head(1)
             nombres_defectos = ", ".join(defectos_criticos["Tipo_Defecto"].tolist())
             
-            st.info(f"""
-            💡 **DIAGNÓSTICO GERENCIAL (Pareto de Calidad):** Atacando los problemas críticos (**{nombres_defectos}**) eliminarás prácticamente el **80%** de los rechazos totales de la planta. 
-            **Acción de Ingeniería:** Dirigir los eventos Kaizen, análisis AMEF y diagramas de Ishikawa exclusivamente hacia estas fallas para reducir la tasa de rechazo rápidamente y mejorar el rendimiento (*Yield*).
-            """)
+            st.info(f"💡 **DIAGNÓSTICO GERENCIAL:** Atacando los problemas críticos (**{nombres_defectos}**) eliminarás el **80%** de los rechazos totales. Acción de Ingeniería: Dirigir eventos Kaizen y diagramas de Ishikawa hacia estas fallas.")
         else:
             st.info("No se registran defectos en la corrida actual. Excelente estabilidad.")
             
     with layout_inferior_cal[1]:
-        st.subheader("Correlación de Variables vs Rechazos")
+        st.subheader("Correlación vs Rechazos")
         fig_corr = px.scatter(df_cal, x="Temperatura_Sensor", y="Medicion", color="Defecto", color_discrete_sequence=["#28a745", "#dc3545", "#fd7e14", "#6f42c1"])
         fig_corr.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT_COLOR))
+        fig_corr.update_xaxes(title_font=dict(color=TEXT_COLOR), tickfont=dict(color=TEXT_COLOR))
+        fig_corr.update_yaxes(title_font=dict(color=TEXT_COLOR), tickfont=dict(color=TEXT_COLOR))
         st.plotly_chart(fig_corr, use_container_width=True)
-        
-        st.markdown("""
-        <div class='chart-desc'>
-        <b>💡 Diagnóstico de Correlación de Parámetros:</b><br>
-        Evalúa si un parámetro ambiental o de máquina está generando defectos específicos. Fundamental para establecer tolerancias seguras en la configuración del equipo.
-        </div>
-        """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # MÓDULO 3: MANTENIMIENTO PREDICTIVO
@@ -375,7 +351,7 @@ else:
     
     layout_graficos_maint = st.columns(2)
     with layout_graficos_maint[0]:
-        st.subheader("Envolvente Operativa: Torque vs Velocidad (RPM)")
+        st.subheader("Envolvente Operativa: Torque vs Velocidad")
         rpm_col = "Rotational speed [rpm]" if "Rotational speed [rpm]" in df_maint.columns else df_maint.select_dtypes(include=np.number).columns[3]
         torque_col = "Torque [Nm]" if "Torque [Nm]" in df_maint.columns else df_maint.select_dtypes(include=np.number).columns[4]
         
@@ -384,29 +360,19 @@ else:
             color_discrete_map={"0": "#0056b3", "1": "#dc3545"}, labels={"0": "Operación Normal", "1": "Falla del Equipo"}
         )
         fig_scatter_maint.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT_COLOR))
+        fig_scatter_maint.update_xaxes(title_font=dict(color=TEXT_COLOR), tickfont=dict(color=TEXT_COLOR))
+        fig_scatter_maint.update_yaxes(title_font=dict(color=TEXT_COLOR), tickfont=dict(color=TEXT_COLOR))
         st.plotly_chart(fig_scatter_maint, use_container_width=True)
         
-        st.markdown("""
-        <div class='chart-desc'>
-        <b>💡 Identificación de Zonas de Riesgo Mecánico:</b><br>
-        Mapea las combinaciones de RPM y Torque de la maquinaria. Los puntos rojos indican colapsos. Si la máquina entra en esa "zona de riesgo", el PLC debe reducir la velocidad automáticamente.
-        </div>
-        """, unsafe_allow_html=True)
-        
     with layout_graficos_maint[1]:
-        st.subheader("Curva de Degradación: Desgaste de Herramienta")
+        st.subheader("Curva de Degradación: Desgaste")
         fig_hist_wear = px.histogram(df_maint, x=tool_wear_col, color="Machine failure", color_discrete_map={0: "#28a745", 1: "#dc3545"}, nbins=30)
         fig_hist_wear.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT_COLOR))
+        fig_hist_wear.update_xaxes(title_font=dict(color=TEXT_COLOR), tickfont=dict(color=TEXT_COLOR))
+        fig_hist_wear.update_yaxes(title_font=dict(color=TEXT_COLOR), tickfont=dict(color=TEXT_COLOR))
         st.plotly_chart(fig_hist_wear, use_container_width=True)
-        
-        st.markdown("""
-        <div class='chart-desc'>
-        <b>💡 Programación de Cambios Rápidos (SMED):</b><br>
-        Las barras rojas ilustran a los cuántos minutos de uso continuo las herramientas de corte comienzan a quebrarse. Ayuda a planear los paros de Mantenimiento Preventivo Total (TPM).
-        </div>
-        """, unsafe_allow_html=True)
 
-    st.subheader("🚨 Registro de Telemetría para Inspección en Planta")
+    st.subheader("🚨 Registro de Telemetría para Inspección")
     st.dataframe(df_maint.sort_values(by="Machine failure", ascending=False), use_container_width=True, hide_index=True)
 
 # ─── 5. PIE DE PÁGINA CORPORATIVO ───────────────────────────────────────────
