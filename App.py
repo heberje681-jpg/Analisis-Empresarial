@@ -193,4 +193,164 @@ if modulo == "📦 Cadena de Suministro e Inventario":
         fig_pareto.update_layout(
             plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
             margin=dict(l=10, r=10, t=20, b=10),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, x)
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        fig_pareto.update_xaxes(title_text="Productos ordenados de mayor a menor valor", showticklabels=False)
+        fig_pareto.update_yaxes(title_text="Ingresos por Ventas ($)", secondary_y=False, gridcolor="#e9ecef")
+        fig_pareto.update_yaxes(title_text="Porcentaje Acumulado (%)", secondary_y=True, range=[0, 105], dtick=20)
+        
+        st.plotly_chart(fig_pareto, use_container_width=True)
+        
+        # 💡 DETECCIÓN AUTOMÁTICA DEL PROBLEMA DE INVENTARIO (CUADRO DE DIAGNÓSTICO)
+        cant_clase_a = len(df_inv[df_inv["Clasificacion_ABC"] == "Clase A (Crítico)"])
+        pct_items_clase_a = (cant_clase_a / len(df_inv)) * 100
+        
+        st.info(f"""
+        💡 **DIAGNÓSTICO GERENCIAL (Ley de Pareto Detectada):** El **{pct_items_clase_a:.1f}%** de tus productos activos (*Clase A*) acumulan el **80% del valor financiero total** de la operación. 
+        **Acción de Ingeniería:** Concentra auditorías de calidad (APQP/PPAP) y optimiza los stocks de seguridad exclusivamente en estos artículos críticos. Un quiebre de inventario aquí paralizaría los ingresos principales de la compañía.
+        """)
+        
+    with layout_graficos_inv[1]:
+        st.subheader("Costos Logísticos por Tipo de Producto")
+        fig_costos = px.box(
+            df_inv, x=type_col, y=ship_col, 
+            points="all", color=type_col, color_discrete_sequence=LIGHT_THEME_COLORS
+        )
+        fig_costos.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", showlegend=False)
+        st.plotly_chart(fig_costos, use_container_width=True)
+
+    st.subheader("📋 Matriz de Control de Inventario General")
+    st.dataframe(df_inv[[sku_col, type_col, price_col, avail_col, sales_col, "Clasificacion_ABC", "Valor_Ventas"]], use_container_width=True, hide_index=True)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# MÓDULO 2: ANALÍTICA DE CALIDAD (CONTROL DE PROCESOS)
+# ══════════════════════════════════════════════════════════════════════════════
+elif modulo == "🔬 Analítica de Calidad":
+    st.title("🔬 Quality Analytics: Control Estadístico de Procesos")
+    
+    df_cal = cargar_datos_calidad()
+    
+    with st.sidebar:
+        if "quality_inspection.csv" in os.listdir("."):
+            st.success("Conectado a dataset de Inspección real")
+        else:
+            st.caption("Usando simulación avanzada")
+
+    promedio_proceso = df_cal["Medicion"].mean()
+    desviacion_proceso = df_cal["Medicion"].std()
+    
+    lcs = promedio_proceso + (3 * desviacion_proceso)
+    lci = promedio_proceso - (3 * desviacion_proceso)
+    les = promedio_proceso + 0.40 
+    lei = promedio_proceso - 0.40
+    
+    cp = (les - lei) / (6 * desviacion_proceso)
+    cpk = min((les - promedio_proceso)/(3 * desviacion_proceso), (promedio_proceso - lei)/(3 * desviacion_proceso))
+
+    kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
+    with kpi_col1:
+        st.markdown(f"<div class='kpi-box'><div class='kpi-lbl'>Media del Proceso</div><div class='kpi-val'>{promedio_proceso:.3f} mm</div><div class='kpi-subtext' style='color:#0056b3;'>Dimensión Promedio</div></div>", unsafe_allow_html=True)
+    with kpi_col2:
+        tasa_defectos = (len(df_cal[df_cal["Defecto"] != "Ninguno"]) / len(df_cal)) * 100
+        st.markdown(f"<div class='kpi-box'><div class='kpi-lbl'>Tasa de Defectos</div><div class='kpi-val' style='color:#dc3545;'>{tasa_defectos:.1f}%</div><div class='kpi-subtext' style='color:#dc3545;'>Unidades Rechazadas</div></div>", unsafe_allow_html=True)
+    with kpi_col3:
+        color_cp = "#28a745" if cp >= 1.33 else "#fd7e14"
+        st.markdown(f"<div class='kpi-box'><div class='kpi-lbl'>Índice de Capacidad (Cp)</div><div class='kpi-val' style='color:{color_cp};'>{cp:.2f}</div><div class='kpi-subtext'>Potencial del Proceso</div></div>", unsafe_allow_html=True)
+    with kpi_col4:
+        color_cpk = "#28a745" if cpk >= 1.33 else "#dc3545"
+        status_cpk = "Proceso Capable" if cpk >= 1.33 else "Proceso No Centrado"
+        st.markdown(f"<div class='kpi-box'><div class='kpi-lbl'>Capacidad Real (Cpk)</div><div class='kpi-val' style='color:{color_cpk};'>{cpk:.2f}</div><div class='kpi-subtext' style='color:{color_cpk};'>{status_cpk}</div></div>", unsafe_allow_html=True)
+
+    st.markdown("<div class='section-header'>Gráficos de Control Estadístico en Tiempo Real</div>", unsafe_allow_html=True)
+    
+    fig_control = go.Figure()
+    fig_control.add_trace(go.Scatter(x=df_cal["Muestra"], y=df_cal["Medicion"], mode="lines+markers", name="Medición Pieza", line=dict(color="#0056b3", width=2)))
+    fig_control.add_hline(y=promedio_proceso, line_dash="dash", line_color="#28a745", annotation_text="Línea Central (Media)")
+    fig_control.add_hline(y=lcs, line_dash="dot", line_color="#dc3545", annotation_text="LCS (+3σ)")
+    fig_control.add_hline(y=lci, line_dash="dot", line_color="#dc3545", annotation_text="LCI (-3σ)")
+    
+    fig_control.update_layout(
+        title="Carta de Control de Variabilidad Estadístico (Muestreo Secuencial)",
+        plot_bgcolor="#ffffff", paper_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(gridcolor="#f1f3f5", title="Número de Muestra"), yaxis=dict(gridcolor="#f1f3f5", title="Dimensión Analizada")
+    )
+    st.plotly_chart(fig_control, use_container_width=True)
+
+    layout_inferior_cal = st.columns(2)
+    with layout_inferior_cal[0]:
+        st.subheader("Análisis de Pareto: Modos de Falla Frecuentes")
+        df_defectos = df_cal[df_cal["Defecto"] != "Ninguno"]["Defecto"].value_counts().reset_index()
+        if not df_defectos.empty:
+            fig_pareto_defectos = px.bar(df_defectos, x="index", y="Defecto", labels={"index": "Tipo de Defecto", "Defecto": "Frecuencia de Ocurrencia"}, color_discrete_sequence=["#fd7e14"])
+            fig_pareto_defectos.update_layout(plot_bgcolor="rgba(0,0,0,0)")
+            st.plotly_chart(fig_pareto_defectos, use_container_width=True)
+        else:
+            st.info("No se registran defectos en la corrida actual. Excelente estabilidad.")
+            
+    with layout_inferior_cal[1]:
+        st.subheader("Correlación: Temperatura del Proceso vs Variación Física")
+        fig_corr = px.scatter(df_cal, x="Temperatura_Sensor", y="Medicion", color="Defecto", color_discrete_sequence=["#28a745", "#dc3545", "#fd7e14", "#6f42c1"])
+        fig_corr.update_layout(plot_bgcolor="rgba(0,0,0,0)")
+        st.plotly_chart(fig_corr, use_container_width=True)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# MÓDULO 3: MANTENIMIENTO PREDICTIVO
+# ══════════════════════════════════════════════════════════════════════════════
+else:
+    st.title("⚙️ Mantenimiento Predictivo & Monitoreo de Maquinaria")
+    
+    df_maint = cargar_datos_mantenimiento()
+    
+    with st.sidebar:
+        if "predictive_maintenance.csv" in os.listdir("."):
+            st.success("Conectado a dataset de Sensores real")
+        else:
+            st.caption("Usando simulación avanzada")
+
+    kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
+    with kpi_col1:
+        st.markdown(f"<div class='kpi-box'><div class='kpi-lbl'>Total Registros Monitoreados</div><div class='kpi-val'>{len(df_maint)}</div><div class='kpi-subtext' style='color:#0056b3;'>Horas de Operación</div></div>", unsafe_allow_html=True)
+    with kpi_col2:
+        fallas_reales = df_maint["Machine failure"].sum()
+        st.markdown(f"<div class='kpi-box'><div class='kpi-lbl'>Anomalías / Fallas</div><div class='kpi-val' style='color:#dc3545;'>{fallas_reales}</div><div class='kpi-subtext' style='color:#dc3545;'>Paros Críticos del Sistema</div></div>", unsafe_allow_html=True)
+    with kpi_col3:
+        tool_wear_col = "Tool wear [min]" if "Tool wear [min]" in df_maint.columns else df_maint.select_dtypes(include=np.number).columns[-2]
+        max_tool_wear = df_maint[tool_wear_col].max()
+        st.markdown(f"<div class='kpi-box'><div class='kpi-lbl'>Desgaste Máx. Herramienta</div><div class='kpi-val'>{max_tool_wear} min</div><div class='kpi-subtext' style='color:#fd7e14;'>Vida Útil Remanente</div></div>", unsafe_allow_html=True)
+    with kpi_col4:
+        oee_estimado = ((len(df_maint) - fallas_reales) / len(df_maint)) * 100
+        st.markdown(f"<div class='kpi-box'><div class='kpi-lbl'>Disponibilidad (Proxy OEE)</div><div class='kpi-val' style='color:#28a745;'>{oee_estimado:.1f}%</div><div class='kpi-subtext'>Eficiencia de Equipos</div></div>", unsafe_allow_html=True)
+
+    st.markdown("<div class='section-header'>Análisis de Telemetría Industrial para Prevención de Paros</div>", unsafe_allow_html=True)
+    
+    layout_graficos_maint = st.columns(2)
+    with layout_graficos_maint[0]:
+        st.subheader("Distribución Operativa: Torque vs Velocidad Rotación (RPM)")
+        rpm_col = "Rotational speed [rpm]" if "Rotational speed [rpm]" in df_maint.columns else df_maint.select_dtypes(include=np.number).columns[3]
+        torque_col = "Torque [Nm]" if "Torque [Nm]" in df_maint.columns else df_maint.select_dtypes(include=np.number).columns[4]
+        
+        fig_scatter_maint = px.scatter(
+            df_maint, x=rpm_col, y=torque_col,
+            color=df_maint["Machine failure"].astype(str),
+            color_discrete_map={"0": "#0056b3", "1": "#dc3545"},
+            labels={"0": "Operación Normal", "1": "Falla del Equipo"}
+        )
+        fig_scatter_maint.update_layout(plot_bgcolor="rgba(0,0,0,0)")
+        st.plotly_chart(fig_scatter_maint, use_container_width=True)
+        
+    with layout_graficos_maint[1]:
+        st.subheader("Curva de Degradación: Desgaste de Herramienta")
+        fig_hist_wear = px.histogram(
+            df_maint, x=tool_wear_col, color="Machine failure",
+            color_discrete_map={0: "#28a745", 1: "#dc3545"},
+            nbins=30
+        )
+        fig_hist_wear.update_layout(plot_bgcolor="rgba(0,0,0,0)")
+        st.plotly_chart(fig_hist_wear, use_container_width=True)
+
+    st.subheader("🚨 Registro de Telemetría para Inspección en Planta")
+    st.dataframe(df_maint.sort_values(by="Machine failure", ascending=False), use_container_width=True, hide_index=True)
+
+# ─── 5. PIE DE PÁGINA CORPORATIVO ───────────────────────────────────────────
+st.divider()
+st.caption("🏭 Industrial Intelligence OS · Sistema Unificado de Gestión de Operaciones · Portafolio Avanzado de Ingeniería Industrial.")
