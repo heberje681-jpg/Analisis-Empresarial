@@ -193,4 +193,4 @@ if modulo == "📦 Cadena de Suministro e Inventario":
         fig_pareto.update_layout(
             plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
             margin=dict(l=10, r=10, t=20, b=10),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, x
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, x)
