@@ -165,12 +165,13 @@ if modulo == "📦 Cadena de Suministro e Inventario":
         fig_pareto.update_yaxes(title_text="Porcentaje Acumulado (%)", secondary_y=True, range=[0, 105])
         st.plotly_chart(fig_pareto, use_container_width=True)
         
-        st.markdown("""
-        <div class='chart-desc'>
-        <b>💡 Interpretación Gerencial (Curva de Pareto):</b><br>
-        Este gráfico clasifica el inventario utilizando la ley del 80/20. Las barras azules (Clase A) representan los pocos productos que generan el 80% de los ingresos totales de la empresa. La línea roja muestra cómo se acumula ese porcentaje. <b>Acción recomendada:</b> Priorizar el presupuesto, los pronósticos de demanda y el control de calidad estrictamente en los artículos Clase A para proteger la rentabilidad.
-        </div>
-        """, unsafe_allow_html=True)
+        cant_clase_a = len(df_inv[df_inv["Clasificacion_ABC"] == "Clase A (Crítico)"])
+        pct_items_clase_a = (cant_clase_a / len(df_inv)) * 100
+        
+        st.info(f"""
+        💡 **DIAGNÓSTICO GERENCIAL:** El **{pct_items_clase_a:.1f}%** de tus productos activos (*Clase A*) acumulan el **80% del valor financiero total** de la operación. 
+        **Acción de Ingeniería:** Concentra auditorías de calidad y optimiza los stocks de seguridad exclusivamente en estos artículos críticos para maximizar la rentabilidad sin sobreinventariar.
+        """)
         
     with layout_graficos_inv[1]:
         st.subheader("Costos Logísticos por Categoría")
@@ -181,7 +182,7 @@ if modulo == "📦 Cadena de Suministro e Inventario":
         st.markdown("""
         <div class='chart-desc'>
         <b>💡 Variabilidad Logística:</b><br>
-        Este diagrama de caja (Boxplot) visualiza la dispersión de los costos de envío. Las cajas más altas indican mayor inestabilidad en los fletes de esa categoría. Permite identificar rutas o proveedores que requieren estandarización.
+        Este boxplot visualiza la dispersión de los costos de envío. Las cajas más altas indican inestabilidad en fletes, revelando dónde estandarizar contratos logísticos.
         </div>
         """, unsafe_allow_html=True)
 
@@ -226,7 +227,93 @@ elif modulo == "🔬 Analítica de Calidad":
         status_cpk = "Proceso Capable" if cpk >= 1.33 else "Proceso No Centrado"
         st.markdown(f"<div class='kpi-box'><div class='kpi-lbl'>Capacidad Real (Cpk)</div><div class='kpi-val' style='color:{color_cpk};'>{cpk:.2f}</div><div class='kpi-subtext' style='color:{color_cpk};'>{status_cpk}</div></div>", unsafe_allow_html=True)
 
-    st.markdown("<div class='section-header'>Gráficos de Control Estadístico en Tiempo Real</div>", unsafe_allow
+    st.markdown("<div class='section-header'>Gráficos de Control Estadístico en Tiempo Real</div>", unsafe_allow_html=True)
+    
+    fig_control = go.Figure()
+    fig_control.add_trace(go.Scatter(x=df_cal["Muestra"], y=df_cal["Medicion"], mode="lines+markers", name="Medición Pieza", line=dict(color="#0056b3", width=2)))
+    fig_control.add_hline(y=promedio_proceso, line_dash="dash", line_color="#28a745", annotation_text="Línea Central (Media)")
+    fig_control.add_hline(y=lcs, line_dash="dot", line_color="#dc3545", annotation_text="LCS (+3σ)")
+    fig_control.add_hline(y=lci, line_dash="dot", line_color="#dc3545", annotation_text="LCI (-3σ)")
+    fig_control.update_layout(plot_bgcolor="#ffffff", paper_bgcolor="rgba(0,0,0,0)", xaxis=dict(gridcolor="#f1f3f5", title="Número de Muestra"), yaxis=dict(gridcolor="#f1f3f5", title="Dimensión Analizada"))
+    st.plotly_chart(fig_control, use_container_width=True)
+    
+    st.markdown("""
+    <div class='chart-desc'>
+    <b>💡 Gráfico de Control (Cartas X-bar):</b><br>
+    Permite monitorear la estabilidad de la manufactura. Las líneas punteadas rojas representan los límites de control (±3 desviaciones estándar). Puntos fuera de límites alertan sobre "causas asignables" que requieren contención inmediata.
+    </div>
+    """, unsafe_allow_html=True)
+
+    layout_inferior_cal = st.columns(2)
+    with layout_inferior_cal[0]:
+        st.subheader("Análisis de Pareto: Modos de Falla")
+        df_defectos = df_cal[df_cal["Defecto"] != "Ninguno"]["Defecto"].value_counts().reset_index()
+        df_defectos.columns = ["Tipo_Defecto", "Frecuencia"]
+        
+        if not df_defectos.empty:
+            df_defectos = df_defectos.sort_values(by="Frecuencia", ascending=False)
+            df_defectos["Acumulado"] = df_defectos["Frecuencia"].cumsum()
+            total_defectos = df_defectos["Frecuencia"].sum()
+            df_defectos["Porcentaje_Acumulado"] = (df_defectos["Acumulado"] / total_defectos) * 100
+            
+            fig_pareto_defectos = make_subplots(specs=[[{"secondary_y": True}]])
+            
+            fig_pareto_defectos.add_trace(
+                go.Bar(
+                    x=df_defectos["Tipo_Defecto"], y=df_defectos["Frecuencia"],
+                    name="Ocurrencias", marker_color="#fd7e14",
+                    text=df_defectos["Frecuencia"], textposition="outside",
+                    hovertemplate="<b>%{x}</b><br>Frecuencia: %{y}<extra></extra>"
+                ), secondary_y=False
+            )
+            
+            fig_pareto_defectos.add_trace(
+                go.Scatter(
+                    x=df_defectos["Tipo_Defecto"], y=df_defectos["Porcentaje_Acumulado"],
+                    name="% Acumulado", mode="lines+markers+text",
+                    text=df_defectos["Porcentaje_Acumulado"].apply(lambda x: f"{x:.1f}%"),
+                    textposition="bottom right",
+                    line=dict(color="#0056b3", width=2.5), marker=dict(size=6),
+                    hovertemplate="<b>Porcentaje Acumulado:</b> %{y:.1f}%<extra></extra>"
+                ), secondary_y=True
+            )
+            
+            fig_pareto_defectos.add_hline(y=80, line_dash="dash", line_color="#dc3545", opacity=0.7, secondary_y=True)
+            
+            fig_pareto_defectos.update_layout(
+                plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
+            fig_pareto_defectos.update_yaxes(title_text="Cantidad de Fallas", secondary_y=False, gridcolor="#e9ecef", range=[0, df_defectos["Frecuencia"].max() * 1.15])
+            fig_pareto_defectos.update_yaxes(title_text="Porcentaje Acumulado (%)", secondary_y=True, range=[0, 110])
+            
+            st.plotly_chart(fig_pareto_defectos, use_container_width=True)
+            
+            defectos_criticos = df_defectos[df_defectos["Porcentaje_Acumulado"] <= 85] 
+            if defectos_criticos.empty:
+                defectos_criticos = df_defectos.head(1)
+            nombres_defectos = ", ".join(defectos_criticos["Tipo_Defecto"].tolist())
+            
+            st.info(f"""
+            💡 **DIAGNÓSTICO GERENCIAL (Pareto de Calidad):** Atacando los problemas críticos (**{nombres_defectos}**) eliminarás prácticamente el **80%** de los rechazos totales de la planta. 
+            **Acción de Ingeniería:** Dirigir los eventos Kaizen, análisis AMEF y diagramas de Ishikawa exclusivamente hacia estas fallas para reducir la tasa de rechazo rápidamente y mejorar el rendimiento (*Yield*).
+            """)
+        else:
+            st.info("No se registran defectos en la corrida actual. Excelente estabilidad.")
+            
+    with layout_inferior_cal[1]:
+        st.subheader("Correlación de Variables vs Rechazos")
+        fig_corr = px.scatter(df_cal, x="Temperatura_Sensor", y="Medicion", color="Defecto", color_discrete_sequence=["#28a745", "#dc3545", "#fd7e14", "#6f42c1"])
+        fig_corr.update_layout(plot_bgcolor="rgba(0,0,0,0)")
+        st.plotly_chart(fig_corr, use_container_width=True)
+        
+        st.markdown("""
+        <div class='chart-desc'>
+        <b>💡 Diagnóstico de Correlación de Parámetros:</b><br>
+        Evalúa si un parámetro (ej. Temperatura o Presión) está generando defectos (puntos rojos/naranjas) en rangos específicos. Fundamental para ajustar y calibrar las máquinas.
+        </div>
+        """, unsafe_allow_html=True)
+
 # ══════════════════════════════════════════════════════════════════════════════
 # MÓDULO 3: MANTENIMIENTO PREDICTIVO
 # ══════════════════════════════════════════════════════════════════════════════
@@ -271,8 +358,8 @@ else:
         
         st.markdown("""
         <div class='chart-desc'>
-        <b>💡 Identificación de Zonas de Riesgo:</b><br>
-        Mapea el punto exacto de operación (Revoluciones vs Torque) de la maquinaria. Los puntos rojos revelan las condiciones físicas exactas bajo las cuales el motor o la fresadora tienden a colapsar, permitiendo reprogramar los parámetros de corte.
+        <b>💡 Identificación de Zonas de Riesgo Mecánico:</b><br>
+        Mapea las combinaciones de RPM y Torque de la maquinaria. Los puntos rojos indican colapsos. Si la máquina entra en esa "zona de riesgo", el PLC debe reducir la velocidad automáticamente.
         </div>
         """, unsafe_allow_html=True)
         
@@ -285,7 +372,7 @@ else:
         st.markdown("""
         <div class='chart-desc'>
         <b>💡 Programación de Cambios Rápidos (SMED):</b><br>
-        Este histograma ilustra la vida útil de los insertos/herramientas en minutos antes de fallar (barras rojas). Es vital para calcular el tiempo óptimo para ejecutar un mantenimiento preventivo sin interrumpir la producción de forma sorpresiva.
+        Las barras rojas ilustran a los cuántos minutos de uso continuo las herramientas de corte comienzan a quebrarse. Ayuda a planear los paros de Mantenimiento Preventivo Total (TPM).
         </div>
         """, unsafe_allow_html=True)
 
