@@ -204,6 +204,7 @@ elif modulo == "🔬 Analítica de Calidad":
 
     promedio_proceso = df_cal["Medicion"].mean()
     desviacion_proceso = df_cal["Medicion"].std()
+    
     lcs = promedio_proceso + (3 * desviacion_proceso)
     lci = promedio_proceso - (3 * desviacion_proceso)
     les = promedio_proceso + 0.40 
@@ -238,44 +239,78 @@ elif modulo == "🔬 Analítica de Calidad":
     st.markdown("""
     <div class='chart-desc'>
     <b>💡 Gráfico de Control (Cartas X-bar):</b><br>
-    Permite monitorear la estabilidad del proceso de manufactura a lo largo del tiempo. Las líneas punteadas rojas representan los límites de control estadístico a ±3 desviaciones estándar de la media. Cualquier punto fuera de estos límites indica una "causa asignable" de variación que debe ser investigada inmediatamente para evitar defectos masivos.
+    Permite monitorear la estabilidad de la manufactura. Las líneas punteadas rojas representan los límites de control (±3 desviaciones estándar). Puntos fuera de límites alertan sobre "causas asignables" que requieren contención inmediata.
     </div>
     """, unsafe_allow_html=True)
 
     layout_inferior_cal = st.columns(2)
     with layout_inferior_cal[0]:
         st.subheader("Análisis de Pareto: Modos de Falla")
-        # 🔥 SOLUCIÓN AL ERROR DE PANDAS 2.0 (Renombramiento explícito de columnas) 🔥
         df_defectos = df_cal[df_cal["Defecto"] != "Ninguno"]["Defecto"].value_counts().reset_index()
         df_defectos.columns = ["Tipo_Defecto", "Frecuencia"]
         
         if not df_defectos.empty:
-            fig_pareto_defectos = px.bar(df_defectos, x="Tipo_Defecto", y="Frecuencia", color_discrete_sequence=["#fd7e14"])
-            fig_pareto_defectos.update_layout(plot_bgcolor="rgba(0,0,0,0)")
+            # 🌟 CÁLCULO DE PARETO DE CALIDAD (ACUMULADO) 🌟
+            df_defectos = df_defectos.sort_values(by="Frecuencia", ascending=False)
+            df_defectos["Acumulado"] = df_defectos["Frecuencia"].cumsum()
+            total_defectos = df_defectos["Frecuencia"].sum()
+            df_defectos["Porcentaje_Acumulado"] = (df_defectos["Acumulado"] / total_defectos) * 100
+            
+            fig_pareto_defectos = make_subplots(specs=[[{"secondary_y": True}]])
+            
+            fig_pareto_defectos.add_trace(
+                go.Bar(
+                    x=df_defectos["Tipo_Defecto"], y=df_defectos["Frecuencia"],
+                    name="Ocurrencias", marker_color="#fd7e14",
+                    hovertemplate="<b>%{x}</b><br>Frecuencia: %{y}<extra></extra>"
+                ), secondary_y=False
+            )
+            
+            fig_pareto_defectos.add_trace(
+                go.Scatter(
+                    x=df_defectos["Tipo_Defecto"], y=df_defectos["Porcentaje_Acumulado"],
+                    name="% Acumulado", mode="lines+markers",
+                    line=dict(color="#0056b3", width=2.5), marker=dict(size=6),
+                    hovertemplate="<b>Porcentaje Acumulado:</b> %{y:.1f}%<extra></extra>"
+                ), secondary_y=True
+            )
+            
+            fig_pareto_defectos.add_hline(y=80, line_dash="dash", line_color="#dc3545", opacity=0.7, secondary_y=True)
+            
+            fig_pareto_defectos.update_layout(
+                plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
+            fig_pareto_defectos.update_yaxes(title_text="Cantidad de Fallas", secondary_y=False, gridcolor="#e9ecef")
+            fig_pareto_defectos.update_yaxes(title_text="Porcentaje Acumulado (%)", secondary_y=True, range=[0, 105])
+            
             st.plotly_chart(fig_pareto_defectos, use_container_width=True)
             
-            st.markdown("""
-            <div class='chart-desc'>
-            <b>💡 Detección de Frecuencias:</b><br>
-            Identifica rápidamente qué tipo de defecto está golpeando más duro el <i>yield</i> de producción para enfocar los esfuerzos de mejora continua en la causa raíz principal.
-            </div>
-            """, unsafe_allow_html=True)
+            # DIAGNÓSTICO DEL 80/20 DE CALIDAD
+            defectos_criticos = df_defectos[df_defectos["Porcentaje_Acumulado"] <= 85] 
+            if defectos_criticos.empty:
+                defectos_criticos = df_defectos.head(1)
+            nombres_defectos = ", ".join(defectos_criticos["Tipo_Defecto"].tolist())
+            
+            st.info(f"""
+            💡 **DIAGNÓSTICO GERENCIAL (Pareto de Calidad):** Atacando los problemas críticos (**{nombres_defectos}**) eliminarás prácticamente el **80%** de los rechazos totales de la planta. 
+            **Acción de Ingeniería:** Dirigir los eventos Kaizen, análisis AMEF y diagramas de Ishikawa exclusivamente hacia estas fallas para reducir la tasa de rechazo rápidamente y mejorar el rendimiento (*Yield*).
+            """)
         else:
             st.info("No se registran defectos en la corrida actual. Excelente estabilidad.")
             
     with layout_inferior_cal[1]:
-        st.subheader("Correlación de Variables")
+        st.subheader("Correlación de Variables vs Rechazos")
         fig_corr = px.scatter(df_cal, x="Temperatura_Sensor", y="Medicion", color="Defecto", color_discrete_sequence=["#28a745", "#dc3545", "#fd7e14", "#6f42c1"])
         fig_corr.update_layout(plot_bgcolor="rgba(0,0,0,0)")
         st.plotly_chart(fig_corr, use_container_width=True)
         
         st.markdown("""
         <div class='chart-desc'>
-        <b>💡 Diagnóstico de Correlación:</b><br>
-        Evalúa si un factor ambiental (como la temperatura de la máquina) está provocando alteraciones en la dimensión física de la pieza o generando defectos. Fundamental para el ajuste de parámetros técnicos.
+        <b>💡 Diagnóstico de Correlación de Parámetros:</b><br>
+        Evalúa si un parámetro (ej. Temperatura o Presión) está generando defectos (puntos rojos/naranjas) en rangos específicos. Fundamental para ajustar y calibrar las máquinas.
         </div>
         """, unsafe_allow_html=True)
-
 # ══════════════════════════════════════════════════════════════════════════════
 # MÓDULO 3: MANTENIMIENTO PREDICTIVO
 # ══════════════════════════════════════════════════════════════════════════════
